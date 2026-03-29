@@ -1,0 +1,25 @@
+// ============================================
+// SCHEMA للإنتاج (PostgreSQL)
+// ============================================
+// هذا الملف للإشارة فقط - استخدم schema.prisma الرئيسي
+// ============================================
+
+// للتبديل إلى PostgreSQL في الإنتاج:
+
+// 1. في prisma/schema.prisma غيّر:
+//    datasource db {
+//      provider = "postgresql"  // بدلاً من "sqlite"
+//      url      = env("DATABASE_URL")
+//    }
+
+// 2. في .env أو Vercel Environment Variables:
+//    DATABASE_URL="postgresql://user:password@host:port/dbname?sslmode=require"
+
+// 3. شغّل:
+//    npx prisma generate
+//    npx prisma db push
+
+// ============================================
+// ملاحظة: Prisma Schema يدعم كل من SQLite و PostgreSQL
+// بدون تعديل على الـ models نفسها!
+// ============================================

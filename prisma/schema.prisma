@@ -1,0 +1,707 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String         @id @default(cuid())
+  email           String         @unique
+  password        String
+  name            String?
+  role            UserRole
+  status          AccountStatus  @default(PENDING)
+  deleteReason    String?
+  emailVerified   DateTime?
+  phone           String?
+  avatarUrl       String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  admin           Admin?
+  notifications   Notification[]
+  patient         Patient?
+  receivedReports Report[]       @relation("Reported")
+  sentReports     Report[]       @relation("Reporter")
+  student         Student?
+  bans            UserBan[]
+  strikes         UserStrike?
+
+  @@index([email])
+  @@index([role])
+  @@index([status])
+}
+
+model Patient {
+  id             String                 @id @default(cuid())
+  userId         String                 @unique
+  age            Int?
+  gender         String?
+  address        String?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  applications   Application[]
+  conversations  Conversation[]
+  sentMessages   Message[]
+  user           User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  certificates   PatientCertificate[]
+  consents       PatientConsent[]
+  medicalProfile PatientMedicalProfile?
+
+  @@index([userId])
+}
+
+model Student {
+  id                   String               @id @default(cuid())
+  userId               String               @unique
+  isVerified           Boolean              @default(false)
+  verificationStatus   VerificationStatus   @default(PENDING)
+  universityEmail      String?              @unique
+  universityName       String?
+  studentIdNumber      String?
+  idCardUrl            String?
+  rejectionReason      String?
+  academicYear         Int?
+  specialization       String?
+  collegeName          String?
+  collegeAddress       String?
+  bio                  String?
+  avatarUrl            String?
+  location             String?
+  city                 String?
+  latitude             Float?
+  longitude            Float?
+  completedCases       Int                  @default(0)
+  activeCases          Int                  @default(0)
+  cancelledCases       Int                  @default(0)
+  publicProfileEnabled Boolean              @default(true)
+  showCases            Boolean              @default(true)
+  showRatings          Boolean              @default(true)
+  showReviews          Boolean              @default(true)
+  showActivePosts      Boolean              @default(true)
+  showLocation         Boolean              @default(true)
+  showSpecialization   Boolean              @default(true)
+  showBio              Boolean              @default(true)
+  showCompletedCount   Boolean              @default(true)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  applications         Application[]
+  photos               CasePhoto[]
+  conversations        Conversation[]
+  sentMessages         Message[]
+  certificates         PatientCertificate[]
+  posts                Post[]
+  user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badges               StudentBadge[]
+  points               StudentPoints?
+  stats                StudentStats?
+
+  @@index([userId])
+  @@index([isVerified])
+  @@index([verificationStatus])
+  @@index([city])
+}
+
+model Admin {
+  id              String           @id @default(cuid())
+  userId          String           @unique
+  permissions     String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actionLogs      AdminActionLog[]
+  resolvedReports Report[]         @relation("Resolver")
+
+  @@index([userId])
+}
+
+model Post {
+  id                 String        @id @default(cuid())
+  studentId          String
+  title              String
+  treatmentType      TreatmentType
+  priority           Priority      @default(NORMAL)
+  city               String
+  address            String
+  description        String?
+  requiredCount      Int?
+  acceptedCount      Int           @default(0)
+  latitude           Float?
+  longitude          Float?
+  referencePhotoUrls String?
+  status             PostStatus    @default(ACTIVE)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  applications       Application[]
+  student            Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([status])
+  @@index([treatmentType])
+  @@index([city])
+  @@index([priority])
+}
+
+model Application {
+  id              String                  @id @default(cuid())
+  postId          String
+  patientId       String
+  studentId       String
+  status          ApplicationStatus       @default(PENDING)
+  medicalSnapshot String
+  documentUrls    String?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  student         Student                 @relation(fields: [studentId], references: [id])
+  patient         Patient                 @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  post            Post                    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  medicalData     ApplicationMedicalData?
+  case_           Case?
+
+  @@index([postId])
+  @@index([patientId])
+  @@index([studentId])
+  @@index([status])
+}
+
+model Case {
+  id            String              @id @default(cuid())
+  applicationId String              @unique
+  startDate     DateTime?
+  endDate       DateTime?
+  isCompleted   Boolean             @default(false)
+  studentNotes  String?
+  adminNotes    String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  appointment   Appointment?
+  application   Application         @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  photos        CasePhoto[]
+  conversation  Conversation?
+  certificate   PatientCertificate?
+  rating        Rating?
+
+  @@index([applicationId])
+  @@index([isCompleted])
+}
+
+model PatientMedicalProfile {
+  id                 String   @id @default(cuid())
+  patientId          String   @unique
+  fullName           String?
+  age                Int?
+  gender             String?
+  phone              String?
+  address            String?
+  bloodType          String?
+  chronicDiseases    String?
+  currentMedications String?
+  allergies          String?
+  specialConditions  String?
+  dentalHistory      String?
+  additionalNotes    String?
+  lastUpdated        DateTime @updatedAt
+  createdAt          DateTime @default(now())
+  patient            Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+}
+
+model ApplicationMedicalData {
+  id            String      @id @default(cuid())
+  applicationId String      @unique
+  patientId     String
+  snapshotData  String
+  submittedAt   DateTime    @default(now())
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@index([patientId])
+}
+
+model Conversation {
+  id                 String    @id @default(cuid())
+  caseId             String?   @unique
+  studentId          String
+  patientId          String
+  lastMessage        String?
+  lastMessageTime    DateTime?
+  unreadCountStudent Int       @default(0)
+  unreadCountPatient Int       @default(0)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  patient            Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  student            Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  case_              Case?     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  messages           Message[]
+
+  @@index([caseId])
+  @@index([studentId])
+  @@index([patientId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  studentId      String?
+  patientId      String?
+  messageType    MessageType  @default(TEXT)
+  content        String?
+  fileUrl        String?
+  isRead         Boolean      @default(false)
+  sentAt         DateTime     @default(now())
+  patient        Patient?     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  student        Student?     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([studentId])
+  @@index([patientId])
+}
+
+model Rating {
+  id                 String   @id @default(cuid())
+  caseId             String   @unique
+  patientId          String
+  studentId          String
+  overallRating      Int
+  qualityRating      Int?
+  professionalRating Int?
+  punctualityRating  Int?
+  cleanlinessRating  Int?
+  explanationRating  Int?
+  reviewText         String?
+  isVisible          Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  case_              Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId])
+  @@index([studentId])
+  @@index([patientId])
+  @@index([isVisible])
+}
+
+model CasePhoto {
+  id              String          @id @default(cuid())
+  caseId          String
+  studentId       String
+  patientId       String
+  photoType       PhotoType
+  photoCategory   PhotoCategory
+  fileUrl         String
+  isPublic        Boolean         @default(false)
+  consentRequired Boolean         @default(false)
+  consentGiven    Boolean?
+  consentDate     DateTime?
+  description     String?
+  createdAt       DateTime        @default(now())
+  student         Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  case_           Case            @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  consent         PatientConsent?
+
+  @@index([caseId])
+  @@index([studentId])
+  @@index([isPublic])
+}
+
+model PatientConsent {
+  id           String    @id @default(cuid())
+  photoId      String    @unique
+  patientId    String
+  studentId    String
+  consentGiven Boolean
+  consentDate  DateTime  @default(now())
+  ipAddress    String?
+  createdAt    DateTime  @default(now())
+  patient      Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  photo        CasePhoto @relation(fields: [photoId], references: [id], onDelete: Cascade)
+
+  @@index([photoId])
+  @@index([patientId])
+}
+
+model PatientCertificate {
+  id             String   @id @default(cuid())
+  caseId         String   @unique
+  patientId      String
+  studentId      String
+  certificateUrl String?
+  content        String?
+  rating         Int?
+  reviewText     String?
+  isPublic       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  student        Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  patient        Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  case_          Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId])
+  @@index([patientId])
+  @@index([studentId])
+  @@index([isPublic])
+}
+
+model StudentPoints {
+  id          String   @id @default(cuid())
+  studentId   String   @unique
+  totalPoints Int      @default(0)
+  level       String?
+  stars       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+}
+
+model StudentStats {
+  id              String   @id @default(cuid())
+  studentId       String   @unique
+  treatmentCounts String?
+  totalCases      Int      @default(0)
+  completedCases  Int      @default(0)
+  successRate     Float?
+  currentStreak   Int      @default(0)
+  longestStreak   Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  student         Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+}
+
+model Badge {
+  id            String         @id @default(cuid())
+  name          String
+  nameAr        String?
+  icon          String?
+  description   String
+  badgeType     BadgeType      @unique
+  condition     String?
+  points        Int?
+  createdAt     DateTime       @default(now())
+  studentBadges StudentBadge[]
+
+  @@index([badgeType])
+}
+
+model StudentBadge {
+  id        String   @id @default(cuid())
+  studentId String
+  badgeId   String
+  earnedAt  DateTime @default(now())
+  badge     Badge    @relation(fields: [badgeId], references: [id])
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, badgeId])
+  @@index([studentId])
+  @@index([badgeId])
+}
+
+model TreatmentPoints {
+  id            String        @id @default(cuid())
+  treatmentType TreatmentType @unique
+  points        Int
+  complexity    String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([treatmentType])
+}
+
+model Notification {
+  id         String           @id @default(cuid())
+  userId     String
+  type       NotificationType
+  title      String
+  message    String
+  data       String?
+  actionLink String?
+  actionText String?
+  isRead     Boolean          @default(false)
+  channels   String?
+  createdAt  DateTime         @default(now())
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([isRead])
+}
+
+model Report {
+  id             String         @id @default(cuid())
+  reporterId     String
+  reporterType   String
+  reportedUserId String
+  caseId         String?
+  reportType     ReportType
+  description    String
+  evidenceUrls   String?
+  status         ReportStatus   @default(PENDING)
+  adminDecision  AdminDecision?
+  adminNotes     String?
+  banDuration    Int?
+  resolvedBy     String?
+  resolvedAt     DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  resolver       Admin?         @relation("Resolver", fields: [resolvedBy], references: [id])
+  reportedUser   User           @relation("Reported", fields: [reportedUserId], references: [id])
+  reporter       User           @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([reporterId])
+  @@index([reportedUserId])
+  @@index([status])
+}
+
+model UserStrike {
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  totalStrikes   Int       @default(0)
+  lastStrikeDate DateTime?
+  strikeHistory  String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model UserBan {
+  id        String    @id @default(cuid())
+  userId    String
+  banType   String
+  banReason String
+  bannedBy  String
+  bannedAt  DateTime  @default(now())
+  banUntil  DateTime?
+  isActive  Boolean   @default(true)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isActive])
+}
+
+model AdminActionLog {
+  id              String          @id @default(cuid())
+  adminId         String
+  actionType      AdminActionType
+  targetUserId    String?
+  targetPostId    String?
+  targetReportId  String?
+  reason          String?
+  additionalNotes String?
+  timestamp       DateTime        @default(now())
+  ipAddress       String?
+  admin           Admin           @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([actionType])
+  @@index([timestamp])
+}
+
+model Appointment {
+  id              String            @id @default(cuid())
+  caseId          String            @unique
+  type            AppointmentType
+  status          AppointmentStatus @default(SCHEDULED)
+  scheduledAt     DateTime
+  duration        Int?
+  location        String?
+  notes           String?
+  reminder24hSent Boolean           @default(false)
+  reminder1hSent  Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  case_           Case              @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId])
+  @@index([scheduledAt])
+  @@index([status])
+}
+
+model GoogleCalendarSync {
+  id           String    @id @default(cuid())
+  userId       String
+  accessToken  String?
+  refreshToken String?
+  tokenExpiry  DateTime?
+  calendarId   String?
+  syncEnabled  Boolean   @default(false)
+  lastSyncAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([userId, calendarId])
+  @@index([userId])
+}
+
+enum UserRole {
+  PATIENT
+  STUDENT
+  ADMIN
+}
+
+enum AccountStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  BANNED
+  DELETED
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PostStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum Priority {
+  NORMAL
+  MEDIUM
+  URGENT
+}
+
+enum TreatmentType {
+  FILLING
+  EXTRACTION
+  CLEANING
+  ROOT_CANAL
+  PROSTHETICS
+  ORTHODONTICS
+  SURGERY
+  PERIODONTAL
+  WHITENING
+  X_RAY
+}
+
+enum ApplicationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  LOCKED
+  CANCELLED
+  COMPLETED
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+}
+
+enum PhotoType {
+  BEFORE
+  AFTER
+}
+
+enum PhotoCategory {
+  PORTFOLIO
+  REFERENCE
+  CURRENT_CASE
+}
+
+enum BadgeType {
+  FIRST_CASE
+  RISING_STAR
+  CENTURY
+  PERFECT_ATTENDANCE
+  SURGERY_STAR
+  CREATIVE_DENTIST
+  PHOTOGRAPHER
+  SPEED_DEMON
+  SPECIALIST
+  VERSATILE
+}
+
+enum NotificationType {
+  NEW_APPLICATION
+  APPLICATION_ACCEPTED
+  APPLICATION_REJECTED
+  APPLICATION_LOCKED
+  NEW_MESSAGE
+  CASE_COMPLETED
+  NEW_REVIEW
+  NEW_RATING
+  NEW_REPORT
+  REPORT_RESOLVED
+  STUDENT_VERIFIED
+  PHOTO_CONSENT_REQUEST
+  PHOTO_CONSENT_RESPONSE
+  APPOINTMENT_REMINDER
+  NEW_BADGE
+  ADMIN_ACTION_RESOLVED
+  ADMIN_ACTION_WARNED
+  ADMIN_ACTION_SUSPENDED
+  ADMIN_ACTION_TEMP_BANNED
+  ADMIN_ACTION_PERM_BANNED
+}
+
+enum NotificationChannel {
+  IN_APP
+  PUSH
+  EMAIL
+}
+
+enum ReportType {
+  NO_SHOW
+  CANCELLATION
+  ABUSE
+  UNFAIR_RATING
+  INAPPROPRIATE_CONTENT
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+}
+
+enum AdminDecision {
+  DISMISS
+  WARNING
+  SUSPEND
+  TEMP_BAN
+  PERM_BAN
+}
+
+enum AdminActionType {
+  APPROVE_STUDENT
+  REJECT_STUDENT
+  DELETE_POST
+  WARN_USER
+  BAN_USER
+  RESOLVE_REPORT
+  SUSPEND_USER
+  UNSUSPEND_USER
+  DELETE_USER
+  MODIFY_POST
+  MODIFY_USER
+}
+
+enum AppointmentType {
+  APPOINTMENT
+  CONSULTATION
+  SURGERY
+  FOLLOW_UP
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
